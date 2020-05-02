@@ -20,6 +20,9 @@ class TestRdkitUtil(unittest.TestCase):
                                      '../../feat/tests/3ws9_protein_fixer_rdkit.pdb')
     self.ligand_file = os.path.join(current_dir, '../../feat/tests/3ws9_ligand.sdf')
 
+  def test_load_complex(self):
+    pass
+
   def test_load_molecule(self):
     # adding hydrogens and charges is tested in dc.utils
     from rdkit.Chem.AllChem import Mol
@@ -62,6 +65,9 @@ class TestRdkitUtil(unittest.TestCase):
         after_hydrogen_count += 1
     assert_true(after_hydrogen_count >= original_hydrogen_count)
 
+  def test_apply_pdbfixer(self):
+    pass
+
   def test_compute_charges(self):
     current_dir = os.path.dirname(os.path.realpath(__file__))
     ligand_file = os.path.join(current_dir, "../../dock/tests/1jld_ligand.sdf")
@@ -76,6 +82,12 @@ class TestRdkitUtil(unittest.TestCase):
       if value != 0:
         has_a_charge = True
     assert_true(has_a_charge)
+
+  def test_protein_to_pdbqt(self):
+    pass
+
+  def test_convert_mol_to_pdbqrt(self):
+    pass
 
   def test_rotate_molecules(self):
     # check if distances do not change
@@ -173,6 +185,15 @@ class TestRdkitUtil(unittest.TestCase):
       second_atom_equal = np.all(xyz[i] == merged[i + len(xyz)])
       assert_true(first_atom_equal)
       assert_true(second_atom_equal)
+
+  def test_merge_molecules(self):
+    pass
+
+  def test_merge_molecular_fragments(self):
+    pass
+
+  def test_strip_hydrogens(self):
+    pass
 
 class TestPiInteractions(unittest.TestCase):
 
