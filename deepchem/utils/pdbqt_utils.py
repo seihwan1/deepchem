@@ -59,9 +59,10 @@ class PdbqtLigandWriter(object):
     self.outfile = outfile
 
   def convert(self):
-    """
-    The single public function of this class.
-    It converts a molecule and a pdb file into a pdbqt file stored in outfile
+    """Writes a PDBQT file for `self.mol`.
+
+    The single public function of this class.  It converts a molecule
+    and a pdb file into a pdbqt file stored in outfile
     """
     import networkx as nx
     self._create_pdb_map()
@@ -93,7 +94,7 @@ class PdbqtLigandWriter(object):
 
   def _dfs(self, current_partition, bond):
     """
-    This function does a depth first search throught he torsion tree
+    This function does a depth first search through the torsion tree
 
     Parameters
     ----------
@@ -131,8 +132,9 @@ class PdbqtLigandWriter(object):
 
   def _valid_bond(self, bond, current_partition):
     """
-    used to check if a bond goes from the current partition into a partition
-    that is not yet explored
+
+    Used to check if a bond goes from the current partition into a
+    partition that is not yet explored
 
     Parameters
     ----------

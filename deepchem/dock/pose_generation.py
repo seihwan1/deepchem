@@ -16,24 +16,58 @@ from deepchem.utils import rdkit_util
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = deepchem.utils.get_data_dir()
 
 
 class PoseGenerator(object):
-  """Abstract superclass for all pose-generation routines."""
+  """A Pose Generator computes low energy conformations for molecular complexes.
 
-  def generate_poses(self, protein_file, ligand_file, out_dir=None):
-    """Generates the docked complex and outputs files for docked complex."""
+  Many questions in structural biophysics reduce to that of computing
+  the binding free energy of molecular complexes. A key step towards
+  computing the binding free energy of two complexes is to find low
+  energy "poses", that is energetically favorable conformations of
+  molecules with respect to each other. One application of this
+  technique is to find low energy poses for protein-ligand
+  interactions.
+  """
+
+  def generate_poses(self, molecular_complex):
+    """Generates a list of low energy poses for molecular complex
+
+    Parameters
+    ----------
+    molecular_complexes: list
+      A representation of a molecular complex.
+
+    Returns
+    -------
+    A list of molecular complexes in a low energy state
+    """
     raise NotImplementedError
 
 
-def write_conf(receptor_filename,
-               ligand_filename,
-               centroid,
-               box_dims,
-               conf_filename,
-               exhaustiveness=None):
-  """Writes Vina configuration file to disk."""
+def _write_vina_conf(receptor_filename,
+                     ligand_filename,
+                     centroid,
+                     box_dims,
+                     conf_filename,
+                     exhaustiveness=None):
+  """Writes Vina configuration file to disk.
+
+  Parameters
+  ----------
+  receptor_filename: str
+    Filename for receptor
+  ligand_filename: str
+    Filename for the ligand
+  centroid: np.ndarray
+    Of shape `(3,)` holding centroid of system
+  box_dims: np.ndarray
+    Of shape `(3,)` holding the size of the box to dock
+  conf_filename: str
+    Filename to write Autodock Vina configuration to.
+  exhaustiveness: int, optional
+    The exhaustiveness of the search to be performed by Vina
+  """
   with open(conf_filename, "w") as f:
     f.write("receptor = %s\n" % receptor_filename)
     f.write("ligand = %s\n\n" % ligand_filename)
@@ -67,34 +101,44 @@ class VinaPoseGenerator(PoseGenerator):
     Params
     ------
     exhaustiveness: int, optional
-      Tells Autodock Vina how exhaustive it should be with pose generation.
+      Tells Autodock Vina how exhaustive it should be with pose
+      generation.
     detect_pockets: bool, optional
-      If True, attempt to automatically detect binding pockets for this protein.
+      If True, attempt to automatically detect binding pockets for
+      this protein.
     sixty_four_bits: bool, optional
-      Specifies whether this is a 64-bit machine. Needed to download the correct executable. 
+      Specifies whether this is a 64-bit machine. Needed to download
+      the correct executable. 
     """
-    self.vina_dir = os.path.join(DATA_DIR, "autodock_vina_1_1_2_linux_x86")
+    data_dir = deepchem.utils.get_data_dir()
+    if platform.system() == 'Linux':
+      url = "http://vina.scripps.edu/download/autodock_vina_1_1_2_linux_x86.tgz"
+      filename = "autodock_vina_1_1_2_linux_x86.tgz" 
+      dirname = "autodock_vina_1_1_2_linux_x86"
+    elif platform.system() == 'Darwin':
+      if sixty_four_bits:
+        url = "http://vina.scripps.edu/download/autodock_vina_1_1_2_mac_64bit.tar.gz"
+        filename = "autodock_vina_1_1_2_mac_64bit.tar.gz"
+        dirname = "autodock_vina_1_1_2_mac_catalina_64bit"
+      else:
+        url = "http://vina.scripps.edu/download/autodock_vina_1_1_2_mac.tgz"
+        filename = "autodock_vina_1_1_2_mac.tgz"
+        dirname = "autodock_vina_1_1_2_mac"
+    else:
+      raise ValueError("This class can only run on Linux or Mac. If you are on Windows, please try using a cloud platform to run this code instead.")
+    self.vina_dir = os.path.join(data_dir, dirname)
     self.exhaustiveness = exhaustiveness
     self.detect_pockets = detect_pockets
     if self.detect_pockets:
       self.pocket_finder = RFConvexHullPocketFinder()
+    ###############################################################
+    print("self.vina_dir")
+    print(self.vina_dir)
+    print("os.path.exists(self.vina_dir)")
+    print(os.path.exists(self.vina_dir))
+    ###############################################################
     if not os.path.exists(self.vina_dir):
       logger.info("Vina not available. Downloading")
-      if platform.system() == 'Linux':
-        url = "http://vina.scripps.edu/download/autodock_vina_1_1_2_linux_x86.tgz"
-        filename = "autodock_vina_1_1_2_linux_x86.tgz" 
-        dirname = "autodock_vina_1_1_2_linux_x86"
-      elif platform.system() == 'Darwin':
-        if sixty_four_bits:
-          url = "http://vina.scripps.edu/download/autodock_vina_1_1_2_mac_64bit.tar.gz"
-          filename = "autodock_vina_1_1_2_mac_64bit.tar.gz"
-          dirname = "autodock_vina_1_1_2_mac_catalina_64bit"
-        else:
-          url = "http://vina.scripps.edu/download/autodock_vina_1_1_2_mac.tgz"
-          filename = "autodock_vina_1_1_2_mac.tgz"
-          dirname = "autodock_vina_1_1_2_mac"
-      else:
-        raise ValueError("This module can only run on Linux or Mac. If you are on Windows, please try using a cloud platform to run this code instead.")
       wget_cmd = "wget -nv -c -T 15 %s" % url 
       #retcode = call(wget_cmd.split(), shell=True)
       check_output(wget_cmd.split())
@@ -102,7 +146,7 @@ class VinaPoseGenerator(PoseGenerator):
       untar_cmd = "tar -xzvf %s" % filename
       check_output(untar_cmd.split())
       logger.info("Moving to final location")
-      mv_cmd = "mv %s %s" % (dirname, DATA_DIR)
+      mv_cmd = "mv %s %s" % (dirname, data_dir)
       check_output(mv_cmd.split())
       logger.info("Cleanup: removing downloaded vina tar.gz")
       rm_cmd = "rm %s" % filename
@@ -110,27 +154,35 @@ class VinaPoseGenerator(PoseGenerator):
     self.vina_cmd = os.path.join(self.vina_dir, "bin/vina")
 
   def generate_poses(self,
-                     protein_file,
-                     ligand_file,
+                     molecular_complex,
                      centroid=None,
                      box_dims=None,
                      dry_run=False,
                      out_dir=None):
     """Generates the docked complex and outputs files for docked complex.
 
-    Params
-    ------
-    protein_file: str
-      The filename for the protein file. At present, this must
-      be a PDB file. 
-    ligand_file: str
-      The filename for the ligand file
-    centroid: tuple, optional
-      The centroid to dock against. Is computed is not specified.
-    TODO
+    Parameters
+    ----------
+    molecular_complexes: list
+      A representation of a molecular complex.
+    centroid: np.ndarray, optional
+      The centroid to dock against. Is computed if not specified.
+    box_dims: np.ndarray, optional
+      Of shape `(3,)` holding the size of the box to dock. If not
+      specified is set to size of molecular complex plus 5 angstroms.
+    dry_run: bool, optional
+      If True, don't generate poses, but do setup steps
+    out_dir: str, optional
+      If specified, write generated poses to this directory.
     """
     if out_dir is None:
       out_dir = tempfile.mkdtemp()
+
+    # Parse complex
+    if len(molecular_complex) > 2:
+      raise ValueError("Autodock Vina can only dock protein-ligand complexes and not more general molecular complexes.")
+
+    (protein_file, ligand_file) = molecular_complex
 
     # Prepare receptor
     receptor_name = os.path.basename(protein_file).split(".")[0]
@@ -172,13 +224,13 @@ class VinaPoseGenerator(PoseGenerator):
     ligand_name = os.path.basename(ligand_file).split(".")[0]
     ligand_pdbqt = os.path.join(out_dir, "%s.pdbqt" % ligand_name)
 
-    # TODO(rbharath): Generalize this so can support mol2 files as well.
     ligand_mol = rdkit_util.load_molecule(
         ligand_file, calc_charges=True, add_hydrogens=True)
     rdkit_util.write_molecule(ligand_mol[1], ligand_pdbqt)
+
     # Write Vina conf file
     conf_file = os.path.join(out_dir, "conf.txt")
-    write_conf(
+    _write_vina_conf(
         protein_pdbqt,
         ligand_pdbqt,
         protein_centroid,
@@ -197,6 +249,11 @@ class VinaPoseGenerator(PoseGenerator):
                                                 log_file, out_pdbqt),
           shell=True)
     # TODO(rbharath): Convert the output pdbqt to a pdb file.
+    ####################################################
+    print("out_pdbqt")
+    print(out_pdbqt)
+    ####################################################
+    docked_complex = rdkit_util.load_complex(out_pdbqt, add_hydrogens=False, calc_charges=False, pdbfix=False, sanitize=False)
 
     # Return docked files
-    return protein_hyd, out_pdbqt
+    return docked_complex

@@ -15,6 +15,8 @@ from io import StringIO
 from copy import deepcopy
 from collections import Counter
 from scipy.spatial.distance import cdist
+from deepchem.utils.pdbqt_utils import convert_mol_to_pdbqt
+from deepchem.utils.pdbqt_utils import convert_protein_to_pdbqt
 from deepchem.utils.geometry_utils import angle_between
 from deepchem.utils.geometry_utils import is_angle_within_cutoff
 from deepchem.utils.geometry_utils import generate_random_rotation_matrix
@@ -156,8 +158,10 @@ def load_complex(molecular_complex,
 
   Parameters
   ----------
-  molecular_complex: str
-    filename for molecule
+  molecular_complex: list or str
+    If list, each entry should be a filename for a constituent
+    molecule in complex. If str, should be the filename of a file that
+    holds the full complex.
   add_hydrogens: bool, optional
     If true, add hydrogens via pdbfixer
   calc_charges: bool, optional
@@ -171,13 +175,19 @@ def load_complex(molecular_complex,
   -------
   List of tuples (xyz, mol)
   """
+  if isinstance(molecular_complex, str):
+    molecule_complex = [molecular_complex]
   fragments = []
   for mol in molecular_complex:
-    fragments.append(load_molecule(mol,
-                                   add_hydrogens=add_hydrogens,
-                                   calc_charges=calc_charges,
-                                   pdbfix=pdbfix,
-                                   sanitize=sanitize))
+    loaded = load_molecule(mol,
+                           add_hydrogens=add_hydrogens,
+                           calc_charges=calc_charges,
+                           pdbfix=pdbfix,
+                           sanitize=sanitize)
+    if isinstance(loaded, list):
+      fragments += loaded
+    else:
+      fragments.append(loaded)
   return fragments
     
 
@@ -209,7 +219,8 @@ def load_molecule(molecule_file,
 
   Returns
   -------
-  Tuple (xyz, mol)
+  Tuple (xyz, mol) if file contains single molecule. Else returns a
+  list of the tuples for the separate molecules in this list.
   """
   from rdkit import Chem
   from rdkit.Chem.rdchem import AtomValenceException
@@ -218,6 +229,7 @@ def load_molecule(molecule_file,
     my_mol = Chem.MolFromMol2File(molecule_file, sanitize=False, removeHs=False)
   elif ".sdf" in molecule_file:
     suppl = Chem.SDMolSupplier(str(molecule_file), sanitize=False)
+    # TODO: This is wrong. Should return all molecules
     my_mol = suppl[0]
   elif ".pdbqt" in molecule_file:
     pdb_block = pdbqt_to_pdb(molecule_file)

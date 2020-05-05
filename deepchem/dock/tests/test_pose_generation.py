@@ -37,7 +37,7 @@ class TestPoseGeneration(unittest.TestCase):
     # Note this may download autodock Vina...
     vpg = dc.dock.VinaPoseGenerator(detect_pockets=False, exhaustiveness=1)
     protein_pose_file, ligand_pose_file = vpg.generate_poses(
-        protein_file, ligand_file, out_dir="/tmp")
+        (protein_file, ligand_file), out_dir="/tmp")
 
     # Check returned files exist
     assert os.path.exists(protein_pose_file)
