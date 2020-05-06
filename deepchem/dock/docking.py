@@ -28,8 +28,10 @@ class Docker(object):
     raise NotImplementedError
 
 
-class VinaGridRFDocker(Docker):
-  """Vina pose-generation, RF-models on grid-featurization of complexes.
+#class VinaGridRFDocker(Docker):
+class VinaDocker(Docker):
+  #"""Vina pose-generation, RF-models on grid-featurization of complexes.
+  """Vina pose-generation, pose-scoring complexes.
 
   This class provides a docking engine which uses Autodock Vina
   for pose generation and a random forest model, trained on
@@ -37,22 +39,30 @@ class VinaGridRFDocker(Docker):
   function.
   """
 
-  def __init__(self, exhaustiveness=10, detect_pockets=False):
-    """Builds model."""
+  def __init__(self, model, featurizer, exhaustiveness=10, detect_pockets=False):
+    """Builds model.
+
+    Parameters
+    ----------
+    model: `Model`
+      Should make predictions on molecular compex
+    featurizer: `ComplexFeaturizer`
+      Featurizer associated with model
+    """
     self.base_dir = tempfile.mkdtemp()
-    logger.info("About to download trained model.")
-    call((
-        "wget -nv -c http://deepchem.io.s3-website-us-west-1.amazonaws.com/trained_models/random_full_RF.tar.gz"
-    ).split())
-    call(("tar -zxvf random_full_RF.tar.gz").split())
-    call(("mv random_full_RF %s" % (self.base_dir)).split())
-    self.model_dir = os.path.join(self.base_dir, "random_full_RF")
+    #logger.info("About to download trained model.")
+    #call((
+    #    "wget -nv -c http://deepchem.io.s3-website-us-west-1.amazonaws.com/trained_models/random_full_RF.tar.gz"
+    #).split())
+    #call(("tar -zxvf random_full_RF.tar.gz").split())
+    #call(("mv random_full_RF %s" % (self.base_dir)).split())
+    #self.model_dir = os.path.join(self.base_dir, "random_full_RF")
 
-    # Fit model on dataset
-    model = SklearnModel(model_dir=self.model_dir)
-    model.reload()
+    ## Fit model on dataset
+    #model = SklearnModel(model_dir=self.model_dir)
+    #model.reload()
 
-    self.pose_scorer = GridPoseScorer(model, feat="grid")
+    #self.pose_scorer = GridPoseScorer(model, feat="grid")
     self.pose_generator = VinaPoseGenerator(
         exhaustiveness=exhaustiveness, detect_pockets=detect_pockets)
 
