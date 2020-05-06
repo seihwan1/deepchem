@@ -11,7 +11,7 @@ import tempfile
 from subprocess import call
 from deepchem.utils.rdkit_util import add_hydrogens_to_mol
 from subprocess import check_output
-from deepchem.dock.binding_pocket import RFConvexHullPocketFinder
+from deepchem.dock.binding_pocket import ConvexHullPocketFinder
 from deepchem.utils import rdkit_util
 
 logger = logging.getLogger(__name__)
@@ -97,7 +97,6 @@ class VinaPoseGenerator(PoseGenerator):
   def __init__(self, exhaustiveness=10, detect_pockets=True, sixty_four_bits=True):
     """Initializes Vina Pose Generator
 
-  
     Params
     ------
     exhaustiveness: int, optional
@@ -130,7 +129,7 @@ class VinaPoseGenerator(PoseGenerator):
     self.exhaustiveness = exhaustiveness
     self.detect_pockets = detect_pockets
     if self.detect_pockets:
-      self.pocket_finder = RFConvexHullPocketFinder()
+      self.pocket_finder = ConvexHullPocketFinder()
     ###############################################################
     print("self.vina_dir")
     print(self.vina_dir)

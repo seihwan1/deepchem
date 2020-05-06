@@ -23,8 +23,6 @@ class TestPoseGeneration(unittest.TestCase):
   def test_pocket_vina_initialization(self):
     """Test that VinaPoseGenerator can be initialized."""
     # Note this may download autodock Vina...
-    if sys.version_info >= (3, 0):
-      return
     vpg = dc.dock.VinaPoseGenerator(detect_pockets=True, exhaustiveness=1)
 
   @attr("slow")
@@ -46,8 +44,6 @@ class TestPoseGeneration(unittest.TestCase):
   @attr('slow')
   def test_pocket_vina_poses(self):
     """Test that VinaPoseGenerator creates pose files."""
-    if sys.version_info >= (3, 0):
-      return
     current_dir = os.path.dirname(os.path.realpath(__file__))
     protein_file = os.path.join(current_dir, "1jld_protein.pdb")
     ligand_file = os.path.join(current_dir, "1jld_ligand.sdf")
@@ -55,7 +51,7 @@ class TestPoseGeneration(unittest.TestCase):
     # Note this may download autodock Vina...
     vpg = dc.dock.VinaPoseGenerator(detect_pockets=True, exhaustiveness=1)
     protein_pose_file, ligand_pose_file = vpg.generate_poses(
-        protein_file, ligand_file, out_dir="/tmp")
+        (protein_file, ligand_file), out_dir="/tmp")
 
     # Check returned files exist
     assert os.path.exists(protein_pose_file)
