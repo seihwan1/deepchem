@@ -54,6 +54,12 @@ class TestPoseScoring(unittest.TestCase):
     out_tensor = vina_nonlinearity(c, w, Nrot)
     assert out_tensor.shape == (N, M)
 
+  def test_vina_repulsion(self):
+    N = 10
+    M = 5
+    d = np.ones((N, M))
+    out_tensor = vina_repulsion(c, w, Nrot)
+    assert out_tensor.shape == (N, M)
   #def test_pose_scorer_init(self):
   #  """Tests that pose-score works."""
   #  sklearn_model = RandomForestRegressor(n_estimators=10)

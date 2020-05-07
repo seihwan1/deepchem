@@ -70,8 +70,6 @@ def vina_repulsion(d):
   d2 = d**2
   d2[np.where(d < 0)] = 0
   return d2
-  #out_tensor = tf.where(d < 0, d**2, tf.zeros_like(d))
-  #return out_tensor
 
 def hydrophobic(d):
   """Computes Autodock Vina's hydrophobic interaction term."""
