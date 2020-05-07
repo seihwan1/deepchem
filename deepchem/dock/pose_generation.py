@@ -17,7 +17,6 @@ from deepchem.utils import rdkit_util
 logger = logging.getLogger(__name__)
 
 
-
 class PoseGenerator(object):
   """A Pose Generator computes low energy conformations for molecular complexes.
 
