@@ -16,6 +16,8 @@ import deepchem as dc
 from subprocess import call
 from deepchem.utils import download_url
 from deepchem.utils import get_data_dir
+from deepchem.dock.pose_scoring import vina_nonlinearity
+from deepchem.dock.pose_scoring import vina_repulsion
 from deepchem.dock.pose_scoring import cutoff_filter
 
 logger = logging.getLogger(__name__)
@@ -34,18 +36,23 @@ class TestPoseScoring(unittest.TestCase):
     json_fname = os.path.join(get_data_dir(), 'core_grid.json')
     self.core_dataset = dc.data.NumpyDataset.from_json(json_fname)
 
-  def test_cutoff(self):
+  def test_cutoff_filter(self):
     N = 10
     M = 5
     d = np.ones((N, M))
     x = np.random.rand(N, M)
     cutoff_dist = 0.5
     x_thres = cutoff_filter(d, x, cutoff=cutoff_dist)
-    ###################################
-    print("x_thres")
-    print(x_thres)
-    ###################################
     assert (x_thres == np.zeros((N, M))).all()
+
+  def test_vina_nonlinearity(self):
+    N = 10
+    M = 5
+    c = np.random.rand(N, M)
+    Nrot = 5
+    w = 0.5
+    out_tensor = vina_nonlinearity(c, w, Nrot)
+    assert out_tensor.shape == (N, M)
 
   #def test_pose_scorer_init(self):
   #  """Tests that pose-score works."""

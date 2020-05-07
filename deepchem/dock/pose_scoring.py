@@ -15,7 +15,7 @@
 #
 import numpy as np
 
-def cutoff(d, x, cutoff=8.0):
+def cutoff_filter(d, x, cutoff=8.0):
   """Applies a cutoff filter on pairwise distances
 
   Parameters
@@ -26,25 +26,52 @@ def cutoff(d, x, cutoff=8.0):
     Matrix of shape `(N, M)` 
   cutoff: float, optional (default 8)
     Cutoff for selection in Angstroms
+
+  Returns
+  -------
+  A `(N,M)` array with values where distance is too large thresholded
+  to 0.
   """
   x_copy = np.copy(x)
-  x_copy[np.where(d >= 8)] = 0
+  x_copy[np.where(d >= cutoff)] = 0
   return x_copy
-  # = np.where(d < 8)
-  #zero_locations = np.where(d >= 8)
 
-  #out_tensor = tf.where(d < 8, x, tf.zeros_like(x))
-  #return out_tensor
+def vina_nonlinearity(c, w, Nrot):
+  """Computes non-linearity used in Vina.
 
-def nonlinearity(c, w, Nrot):
-  """Computes non-linearity used in Vina."""
+  Parameters
+  ----------
+  c: np.ndarray 
+    Of shape `(N, M)` 
+  w: float
+    Weighting term
+  Nrot: int
+    Number of rotatable bonds in this molecule
+
+  Returns
+  -------
+  A `(N, M)` array with activations under a nonlinearity.
+  """
   out_tensor = c / (1 + w * Nrot)
-  return w, out_tensor
-
-def repulsion(d):
-  """Computes Autodock Vina's repulsion interaction term."""
-  out_tensor = tf.where(d < 0, d**2, tf.zeros_like(d))
   return out_tensor
+
+def vina_repulsion(d):
+  """Computes Autodock Vina's repulsion interaction term.
+
+  Parameters
+  ----------
+  d: np.ndarray
+    Of shape `(N, M)`.
+
+  Returns
+  -------
+  A `(N, M)` array with repulsion terms.
+  """
+  d2 = d**2
+  d2[np.where(d < 0)] = 0
+  return d2
+  #out_tensor = tf.where(d < 0, d**2, tf.zeros_like(d))
+  #return out_tensor
 
 def hydrophobic(d):
   """Computes Autodock Vina's hydrophobic interaction term."""
