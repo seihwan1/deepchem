@@ -15,6 +15,23 @@
 #
 import numpy as np
 
+
+def pairwise_distances(coords1, coords2):
+  """Returns matrix of pairwise Euclidean distances.
+
+  Parameters
+  ----------
+  coords1: jax.np.ndarray
+    Of shape `(N, 3)`
+  coords2: jax.np.ndarray
+    Of shape `(M, 3)`
+
+  Returns
+  -------
+  A `(N,M)` array with pairwise distances.
+  """
+  return np.sum((coords1[None,:] - coords2[:, None])**2, -1)**0.5
+
 def cutoff_filter(d, x, cutoff=8.0):
   """Applies a cutoff filter on pairwise distances
 
@@ -32,9 +49,7 @@ def cutoff_filter(d, x, cutoff=8.0):
   A `(N,M)` array with values where distance is too large thresholded
   to 0.
   """
-  x_copy = np.copy(x)
-  x_copy[np.where(d >= cutoff)] = 0
-  return x_copy
+  return np.where(d < cutoff, x, np.zeros_like(x))
 
 def vina_nonlinearity(c, w, Nrot):
   """Computes non-linearity used in Vina.
@@ -60,38 +75,79 @@ def vina_repulsion(d):
 
   Parameters
   ----------
-  d: np.ndarray
+  d: jax.np.ndarray
     Of shape `(N, M)`.
 
   Returns
   -------
   A `(N, M)` array with repulsion terms.
   """
-  d2 = d**2
-  d2[np.where(d < 0)] = 0
-  return d2
+  return np.where(d >= 0, d**2, np.zeros_like(d))
 
-def hydrophobic(d):
-  """Computes Autodock Vina's hydrophobic interaction term."""
-  out_tensor = tf.where(d < 0.5, tf.ones_like(d),
-                        tf.where(d < 1.5, 1.5 - d, tf.zeros_like(d)))
+def vina_hydrophobic(d):
+  """Computes Autodock Vina's hydrophobic interaction term.
+
+  Parameters
+  ----------
+  d: jax.np.ndarray
+    Of shape `(N, M)`.
+
+  Returns
+  -------
+  A `(N, M)` array of hydrophoboic interactions in a piecewise linear
+  curve.
+  """
+  out_tensor = np.where(d < 0.5, np.ones_like(d),
+                        np.where(d < 1.5, 1.5 - d, np.zeros_like(d)))
   return out_tensor
 
-def hydrogen_bond(d):
-  """Computes Autodock Vina's hydrogen bond interaction term."""
-  out_tensor = tf.where(
-      d < -0.7, tf.ones_like(d),
-      tf.where(d < 0, (1.0 / 0.7) * (0 - d), tf.zeros_like(d)))
+
+def vina_hbond(d):
+  """Computes Autodock Vina's hydrogen bond interaction term.
+
+  Parameters
+  ----------
+  d: jax.np.ndarray
+    Of shape `(N, M)`.
+
+  Returns
+  -------
+  A `(N, M)` array of hydrophoboic interactions in a piecewise linear
+  curve.
+  """
+  out_tensor = np.where(
+      d < -0.7, np.ones_like(d),
+      np.where(d < 0, (1.0 / 0.7) * (0 - d), np.zeros_like(d)))
   return out_tensor
 
 def gaussian_first(d):
-  """Computes Autodock Vina's first Gaussian interaction term."""
-  out_tensor = tf.exp(-(d / 0.5)**2)
+  """Computes Autodock Vina's first Gaussian interaction term.
+
+  Parameters
+  ----------
+  d: jax.np.ndarray
+    Of shape `(N, M)`.
+
+  Returns
+  -------
+  A `(N, M)` array of gaussian interaction terms.
+  """
+  out_tensor = np.exp(-(d / 0.5)**2)
   return out_tensor
 
 def gaussian_second(d):
-  """Computes Autodock Vina's second Gaussian interaction term."""
-  out_tensor = tf.exp(-((d - 3) / 2)**2)
+  """Computes Autodock Vina's second Gaussian interaction term.
+
+  Parameters
+  ----------
+  d: jax.np.ndarray
+    Of shape `(N, M)`.
+
+  Returns
+  -------
+  A `(N, M)` array of gaussian interaction terms.
+  """
+  out_tensor = np.exp(-((d - 3) / 2)**2)
   return out_tensor
 
 
@@ -101,7 +157,7 @@ class VinaFreeEnergy(object):
 
   def __init__(self,
                N_atoms,
-               M_nbrs,
+               #M_nbrs,
                ndim,
                nbr_cutoff,
                start,
@@ -116,16 +172,16 @@ class VinaFreeEnergy(object):
     # a difference.
     self.Nrot = Nrot
     self.N_atoms = N_atoms
-    self.M_nbrs = M_nbrs
+    #self.M_nbrs = M_nbrs
     self.ndim = ndim
     self.nbr_cutoff = nbr_cutoff
     self.start = start
     self.stop = stop
 
-  def build(self, input_shape):
-    self.weighted_combo = WeightedLinearCombo()
-    self.w = tf.Variable(tf.random.normal((1,), stddev=self.stddev))
-    self.built = True
+  #def build(self, input_shape):
+  #  self.weighted_combo = WeightedLinearCombo()
+  #  self.w = tf.Variable(tf.random.normal((1,), stddev=self.stddev))
+  #  self.built = True
 
 
   def call(self, inputs):
@@ -143,7 +199,7 @@ class VinaFreeEnergy(object):
       The free energy of each complex in batch
     """
     X = inputs[0]
-    Z = inputs[1]
+    #Z = inputs[1]
 
     ## TODO(rbharath): This layer shouldn't be neighbor-listing. Make
     ## neighbors lists an argument instead of a part of this layer.
@@ -153,23 +209,24 @@ class VinaFreeEnergy(object):
     ## Shape (N, M)
     #dists = InteratomicL2Distances(self.N_atoms, self.M_nbrs,
     #                               self.ndim)([X, nbr_list])
-    dists = compute_pairwise_distances(mol1, mol2)
+    dists = pairwise_distances(coords1, coords2)
 
-    repulsion = self.repulsion(dists)
-    hydrophobic = self.hydrophobic(dists)
-    hbond = self.hydrogen_bond(dists)
-    gauss_1 = self.gaussian_first(dists)
-    gauss_2 = self.gaussian_second(dists)
+    repulsion = vina_repulsion(dists)
+    hydrophobic = vina_hydrophobic(dists)
+    hbond = vina_hbond(dists)
+    gauss_1 = vina_gaussian_first(dists)
+    gauss_2 = vina_gaussian_second(dists)
 
     # Shape (N, M)
     interactions = self.weighted_combo(
         [repulsion, hydrophobic, hbond, gauss_1, gauss_2])
 
     # Shape (N, M)
-    thresholded = self.cutoff(dists, interactions)
+    thresholded = cutoff_filter(dists, interactions)
 
-    weight, free_energies = self.nonlinearity(thresholded, self.w)
-    return tf.reduce_sum(free_energies)
+     free_energies = vina_nonlinearity(thresholded, self.w)
+    #return tf.reduce_sum(free_energies)
+    return np.sum(free_energies)
 
 #
 #class PoseScorer(object):

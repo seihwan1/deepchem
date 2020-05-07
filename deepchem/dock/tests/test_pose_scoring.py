@@ -14,9 +14,9 @@ import shutil
 import numpy as np
 import deepchem as dc
 from subprocess import call
-from deepchem.utils import download_url
-from deepchem.utils import get_data_dir
 from deepchem.dock.pose_scoring import vina_nonlinearity
+from deepchem.dock.pose_scoring import vina_hydrophobic
+from deepchem.dock.pose_scoring import vina_hbond
 from deepchem.dock.pose_scoring import vina_repulsion
 from deepchem.dock.pose_scoring import cutoff_filter
 
@@ -28,13 +28,13 @@ class TestPoseScoring(unittest.TestCase):
   Does sanity checks on pose generation.
   """
 
-  def setUp(self):
-    """Downloads dataset."""
-    download_url(
-        "http://deepchem.io.s3-website-us-west-1.amazonaws.com/featurized_datasets/core_grid.json"
-    )
-    json_fname = os.path.join(get_data_dir(), 'core_grid.json')
-    self.core_dataset = dc.data.NumpyDataset.from_json(json_fname)
+  #def setUp(self):
+  #  """Downloads dataset."""
+  #  download_url(
+  #      "http://deepchem.io.s3-website-us-west-1.amazonaws.com/featurized_datasets/core_grid.json"
+  #  )
+  #  json_fname = os.path.join(get_data_dir(), 'core_grid.json')
+  #  self.core_dataset = dc.data.NumpyDataset.from_json(json_fname)
 
   def test_cutoff_filter(self):
     N = 10
@@ -57,8 +57,22 @@ class TestPoseScoring(unittest.TestCase):
   def test_vina_repulsion(self):
     N = 10
     M = 5
-    d = np.ones((N, M))
-    out_tensor = vina_repulsion(c, w, Nrot)
+    d = np.random.rand(N, M)
+    out_tensor = vina_repulsion(d)
+    assert out_tensor.shape == (N, M)
+    
+  def test_vina_hydrophobic(self):
+    N = 10
+    M = 5
+    d = np.random.rand(N, M)
+    out_tensor = vina_hydrophobic(d)
+    assert out_tensor.shape == (N, M)
+
+  def test_vina_hbond(self):
+    N = 10
+    M = 5
+    d = np.random.rand(N, M)
+    out_tensor = vina_hbond(d)
     assert out_tensor.shape == (N, M)
   #def test_pose_scorer_init(self):
   #  """Tests that pose-score works."""
