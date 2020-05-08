@@ -195,7 +195,7 @@ def weighted_linear_sum(w, x):
   """
   return np.sum(np.dot(w, x))
 
-def vina_energy_term(coords1, coords2, weights):
+def vina_energy_term(coords1, coords2, weights, wrot):
   """
   Parameters
   ----------
@@ -205,6 +205,8 @@ def vina_energy_term(coords1, coords2, weights):
     Molecular coordinates of shape `(M, 3)`
   weights: jax.np.ndarray
     Of shape `(5,)`
+  wrot: float
+    The scaling factor for nonlinearity
 
   Returns
   -------
@@ -218,11 +220,13 @@ def vina_energy_term(coords1, coords2, weights):
   #nbr_list = NeighborList(self.N_atoms, self.M_nbrs, self.ndim,
   #                        self.nbr_cutoff, self.start, self.stop)(X)
 
-  ## Shape (N, M)
   #dists = InteratomicL2Distances(self.N_atoms, self.M_nbrs,
   #                               self.ndim)([X, nbr_list])
-  dists = pairwise_distances(coords1, coords2)
 
+  ## Shape (N, M)
+
+  # TODO(rbharath): The autodock vina source computes surface distances which take into account the van der Waals radius of each atom type.
+  dists = pairwise_distances(coords1, coords2)
   repulsion = vina_repulsion(dists)
   hydrophobic = vina_hydrophobic(dists)
   hbond = vina_hbond(dists)
@@ -236,6 +240,6 @@ def vina_energy_term(coords1, coords2, weights):
   # Shape (N, M)
   thresholded = cutoff_filter(dists, interactions)
 
-   free_energies = vina_nonlinearity(thresholded, self.w)
+  free_energies = vina_nonlinearity(thresholded, wrot)
   #return tf.reduce_sum(free_energies)
   return np.sum(free_energies)
