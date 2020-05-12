@@ -12,10 +12,9 @@ class BindingPocketFeaturizer(Featurizer):
   Featurizes binding pockets with information about chemical
   environments.
 
-  Expects to be given a pdb file, and coordinates for the
-  pockets to featurize. Featurization is currently very simple
-  and counts the number of residues of each type present in the
-  pocket.
+  Expects to be given a pdb file, and coordinates for the pockets to
+  featurize. This classes' featurization is currently very simple and
+  counts the number of residues of each type present in the pocket.
   """
 
   residues = [

@@ -1,5 +1,34 @@
 """Utilities for handling PDBQT files."""
 
+def pdbqt_to_pdb(filename=None, pdbqt_data=None):
+  """Extracts the PDB part of a pdbqt file as a string.
+
+  Either `filename` or `pdbqt_data` must be provided. This function
+  strips PDBQT charge information from the provided input.
+
+  Parameters
+  ----------
+  filename: str, optional
+    Filename of PDBQT file
+  pdbqt_data: list[str], optional
+    Raw list of lines containing data from PDBQT file.
+
+  Returns
+  -------
+  pdb_block: String containing the PDB portion of pdbqt file.
+  """
+  if filename is not None and pdbqt_data is not None:
+    raise ValueError("Only one of filename or pdbqt_data can be provided")
+  elif filename is None and pdbqt_data is None:
+    raise ValueError("Either filename or pdbqt_data must be provided")
+  elif filename is not None:
+    pdbqt_data = open(filename).readlines()
+  pdb_block = ""
+  for line in pdbqt_data:
+    pdb_block += "%s\n" % line[:66]
+  return pdb_block
+
+
 def convert_mol_to_pdbqt(mol, outfile):
   """Convert a rdkit molecule into a pdbqt ligand
 
@@ -44,6 +73,12 @@ def convert_protein_to_pdbqt(mol, outfile):
 class PdbqtLigandWriter(object):
   """
   Create a torsion tree and write to pdbqt file
+
+  The torsion tree represents rotatable bonds in the molecule.
+
+  Note
+  ----
+  This class requires RDKit to be installed.
   """
 
   def __init__(self, mol, outfile):

@@ -39,48 +39,9 @@ class PoseGenerator(object):
 
     Returns
     -------
-    A list of molecular complexes in a low energy state
+    A list of molecular complexes in energetically favorable poses. 
     """
     raise NotImplementedError
-
-
-def _write_vina_conf(protein_filename,
-                     ligand_filename,
-                     centroid,
-                     box_dims,
-                     conf_filename,
-                     exhaustiveness=None):
-  """Writes Vina configuration file to disk.
-
-  Parameters
-  ----------
-  protein_filename: str
-    Filename for protein 
-  ligand_filename: str
-    Filename for the ligand
-  centroid: np.ndarray
-    Of shape `(3,)` holding centroid of system
-  box_dims: np.ndarray
-    Of shape `(3,)` holding the size of the box to dock
-  conf_filename: str
-    Filename to write Autodock Vina configuration to.
-  exhaustiveness: int, optional
-    The exhaustiveness of the search to be performed by Vina
-  """
-  with open(conf_filename, "w") as f:
-    f.write("receptor = %s\n" % protein_filename)
-    f.write("ligand = %s\n\n" % ligand_filename)
-
-    f.write("center_x = %f\n" % centroid[0])
-    f.write("center_y = %f\n" % centroid[1])
-    f.write("center_z = %f\n\n" % centroid[2])
-
-    f.write("size_x = %f\n" % box_dims[0])
-    f.write("size_y = %f\n" % box_dims[1])
-    f.write("size_z = %f\n\n" % box_dims[2])
-
-    if exhaustiveness is not None:
-      f.write("exhaustiveness = %d\n" % exhaustiveness)
 
 
 class VinaPoseGenerator(PoseGenerator):
@@ -91,6 +52,10 @@ class VinaPoseGenerator(PoseGenerator):
   your system to your specified DEEPCHEM_DATA_DIR (remember this
   is an environment variable you set) and invokes the executable
   to perform pose generation for you.
+
+  Note
+  ----
+  This class requires RDKit to be installed.
   """
 
   def __init__(self, exhaustiveness=10, sixty_four_bits=True, pocket_finder=None):
@@ -105,7 +70,8 @@ class VinaPoseGenerator(PoseGenerator):
       Specifies whether this is a 64-bit machine. Needed to download
       the correct executable. 
     pocket_finder: object, optional
-      If specified should be an instance of `dc.dock.BindingPocketFinder`.
+      If specified should be an instance of
+      `dc.dock.BindingPocketFinder`.
     """
     data_dir = deepchem.utils.get_data_dir()
     if platform.system() == 'Linux':
@@ -166,7 +132,7 @@ class VinaPoseGenerator(PoseGenerator):
 
     Returns
     -------
-    List of docked molecular complexes
+    List of docked molecular complexes. Each entry in this list contains a `(protein_mol, ligand_mol)` pair of RDKit molecules.
     """
     if out_dir is None:
       out_dir = tempfile.mkdtemp()
@@ -219,7 +185,7 @@ class VinaPoseGenerator(PoseGenerator):
 
     # Write Vina conf file
     conf_file = os.path.join(out_dir, "conf.txt")
-    _write_vina_conf(
+    vina_utils.write_vina_conf(
         protein_pdbqt,
         ligand_pdbqt,
         protein_centroid,
@@ -230,10 +196,6 @@ class VinaPoseGenerator(PoseGenerator):
     # Define locations of log and output files
     log_file = os.path.join(out_dir, "%s_log.txt" % ligand_name)
     out_pdbqt = os.path.join(out_dir, "%s_docked.pdbqt" % ligand_name)
-    ########################################################
-    print("out_pdbqt")
-    print(out_pdbqt)
-    ########################################################
     # TODO(rbharath): Let user specify the number of poses required.
     if not dry_run:
       logger.info("About to call Vina")
@@ -243,7 +205,7 @@ class VinaPoseGenerator(PoseGenerator):
           shell=True)
     # TODO(rbharath): Convert the output pdbqt to a pdb file.
     ligands = vina_outputs.load_docked_ligands(out_pdbqt)
-    complexes = [(protein_mol, ligand_mol) for ligand_mol in ligands]
+    complexes = [(protein_mol, ligand) for ligand in ligands]
 
     # Return docked files
     return docked_complex

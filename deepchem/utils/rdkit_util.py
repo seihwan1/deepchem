@@ -15,6 +15,7 @@ from io import StringIO
 from copy import deepcopy
 from collections import Counter
 from scipy.spatial.distance import cdist
+from deepchem.utils import pdbqt_utils
 from deepchem.utils.pdbqt_utils import convert_mol_to_pdbqt
 from deepchem.utils.pdbqt_utils import convert_protein_to_pdbqt
 from deepchem.utils.geometry_utils import angle_between
@@ -30,9 +31,18 @@ class MoleculeLoadException(Exception):
 
 
 def get_xyz_from_mol(mol):
-  """
-  returns an m x 3 np array of 3d coords
-  of given rdkit molecule
+  """Extracts a numpy array of coordinates from a molecules.
+
+  Returns a `(N, 3)` numpy array of 3d coords of given rdkit molecule
+
+  Parameters
+  ----------
+  mol: rdkit Molecule
+    Molecule to extract coordinates for
+
+  Returns
+  -------
+  Numpy ndarray of shape `(N, 3)` where `N = mol.GetNumAtoms()`.
   """
   xyz = np.zeros((mol.GetNumAtoms(), 3))
   conf = mol.GetConformer()
@@ -55,6 +65,10 @@ def add_hydrogens_to_mol(mol):
   Returns
   -------
   Rdkit Mol
+
+  Note
+  ----
+  This function requires RDKit and PDBFixer to be installed.
   """
   return apply_pdbfixer(mol, hydrogenate=True)
 
@@ -84,6 +98,10 @@ def apply_pdbfixer(mol, add_missing=True, hydrogenate=True, pH=7.4,
   Returns
   -------
   Rdkit Mol
+
+  Note
+  ----
+  This function requires RDKit and PDBFixer to be installed.
   """
   molecule_file = None
   try:
@@ -134,6 +152,10 @@ def compute_charges(mol):
   Returns
   -------
   No return since updates in place.
+  
+  Note
+  ----
+  This function requires RDKit to be installed.
   """
   from rdkit.Chem import AllChem
   try:
@@ -174,6 +196,10 @@ def load_complex(molecular_complex,
   Returns
   -------
   List of tuples (xyz, mol)
+
+  Note
+  ----
+  This function requires RDKit to be installed.
   """
   if isinstance(molecular_complex, str):
     molecule_complex = [molecular_complex]
@@ -221,6 +247,10 @@ def load_molecule(molecule_file,
   -------
   Tuple (xyz, mol) if file contains single molecule. Else returns a
   list of the tuples for the separate molecules in this list.
+
+  Note
+  ----
+  This function requires RDKit to be installed.
   """
   from rdkit import Chem
   from rdkit.Chem.rdchem import AtomValenceException
@@ -232,7 +262,7 @@ def load_molecule(molecule_file,
     # TODO: This is wrong. Should return all molecules
     my_mol = suppl[0]
   elif ".pdbqt" in molecule_file:
-    pdb_block = pdbqt_to_pdb(molecule_file)
+    pdb_block = pdbqt_utils.pdbqt_to_pdb(molecule_file)
     my_mol = Chem.MolFromPDBBlock(
         str(pdb_block), sanitize=False, removeHs=False)
     from_pdb = True
@@ -266,6 +296,9 @@ def load_molecule(molecule_file,
 def write_molecule(mol, outfile, is_protein=False):
   """Write molecule to a file
 
+  This function writes a representation of the provided molecule to
+  the specified `outfile`. Doesn't return anything.
+
   Parameters
   ----------
   mol: rdkit Mol
@@ -274,6 +307,14 @@ def write_molecule(mol, outfile, is_protein=False):
     Filename to write mol to
   is_protein: bool, optional
     Is this molecule a protein?
+
+  Note
+  ----
+  This function requires RDKit to be installed.
+
+  Raises
+  ------
+  ValueError: if `outfile` isn't of a supported format.
   """
   from rdkit import Chem
   if ".pdbqt" in outfile:
@@ -295,24 +336,6 @@ def write_molecule(mol, outfile, is_protein=False):
   else:
     raise ValueError("Unsupported Format")
 
-
-def pdbqt_to_pdb(filename):
-  """Extracts the PDB part of a pdbqt file as a string.
-
-  Parameters
-  ----------
-  filename: str
-    Filename of PDBQT file
-
-  Returns
-  -------
-  pdb_block: String containing the PDB portion of pdbqt file.
-  """
-  pdbqt_data = open(filename).readlines()
-  pdb_block = ""
-  for line in pdbqt_data:
-    pdb_block += "%s\n" % line[:66]
-  return pdb_block
 
 
 def merge_molecules_xyz(xyzs):
