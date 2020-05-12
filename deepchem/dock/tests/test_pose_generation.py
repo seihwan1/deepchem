@@ -6,6 +6,7 @@ import sys
 import unittest
 import deepchem as dc
 from nose.plugins.attrib import attr
+from deepchem.dock.binding_pocket import ConvexHullPocketFinder
 
 
 class TestPoseGeneration(unittest.TestCase):
@@ -16,14 +17,13 @@ class TestPoseGeneration(unittest.TestCase):
   @attr("slow")
   def test_vina_initialization(self):
     """Test that VinaPoseGenerator can be initialized."""
-    # Note this may download autodock Vina...
-    vpg = dc.dock.VinaPoseGenerator(detect_pockets=False, exhaustiveness=1)
+    vpg = dc.dock.VinaPoseGenerator(exhaustiveness=1)
 
   @attr("slow")
   def test_pocket_vina_initialization(self):
     """Test that VinaPoseGenerator can be initialized."""
-    # Note this may download autodock Vina...
-    vpg = dc.dock.VinaPoseGenerator(detect_pockets=True, exhaustiveness=1)
+    pocket_finder = ConvexHullPocketFinder()
+    vpg = dc.dock.VinaPoseGenerator(pocket_finder=pocket_finder, exhaustiveness=1)
 
   @attr("slow")
   def test_vina_poses(self):
@@ -32,8 +32,7 @@ class TestPoseGeneration(unittest.TestCase):
     protein_file = os.path.join(current_dir, "1jld_protein.pdb")
     ligand_file = os.path.join(current_dir, "1jld_ligand.sdf")
 
-    # Note this may download autodock Vina...
-    vpg = dc.dock.VinaPoseGenerator(detect_pockets=False, exhaustiveness=1)
+    vpg = dc.dock.VinaPoseGenerator(pocket_finder=None, exhaustiveness=1)
     protein_pose_file, ligand_pose_file = vpg.generate_poses(
         (protein_file, ligand_file), out_dir="/tmp")
 

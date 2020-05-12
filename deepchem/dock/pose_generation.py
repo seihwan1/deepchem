@@ -11,8 +11,8 @@ import tempfile
 from subprocess import call
 from deepchem.utils.rdkit_util import add_hydrogens_to_mol
 from subprocess import check_output
-from deepchem.dock.binding_pocket import ConvexHullPocketFinder
 from deepchem.utils import rdkit_util
+from deepchem.utils import vina_utils
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class PoseGenerator(object):
     raise NotImplementedError
 
 
-def _write_vina_conf(receptor_filename,
+def _write_vina_conf(protein_filename,
                      ligand_filename,
                      centroid,
                      box_dims,
@@ -54,8 +54,8 @@ def _write_vina_conf(receptor_filename,
 
   Parameters
   ----------
-  receptor_filename: str
-    Filename for receptor
+  protein_filename: str
+    Filename for protein 
   ligand_filename: str
     Filename for the ligand
   centroid: np.ndarray
@@ -68,7 +68,7 @@ def _write_vina_conf(receptor_filename,
     The exhaustiveness of the search to be performed by Vina
   """
   with open(conf_filename, "w") as f:
-    f.write("receptor = %s\n" % receptor_filename)
+    f.write("receptor = %s\n" % protein_filename)
     f.write("ligand = %s\n\n" % ligand_filename)
 
     f.write("center_x = %f\n" % centroid[0])
@@ -93,7 +93,7 @@ class VinaPoseGenerator(PoseGenerator):
   to perform pose generation for you.
   """
 
-  def __init__(self, exhaustiveness=10, detect_pockets=True, sixty_four_bits=True):
+  def __init__(self, exhaustiveness=10, sixty_four_bits=True, pocket_finder=None):
     """Initializes Vina Pose Generator
 
     Params
@@ -101,12 +101,11 @@ class VinaPoseGenerator(PoseGenerator):
     exhaustiveness: int, optional
       Tells Autodock Vina how exhaustive it should be with pose
       generation.
-    detect_pockets: bool, optional
-      If True, attempt to automatically detect binding pockets for
-      this protein.
     sixty_four_bits: bool, optional
       Specifies whether this is a 64-bit machine. Needed to download
       the correct executable. 
+    pocket_finder: object, optional
+      If specified should be an instance of `dc.dock.BindingPocketFinder`.
     """
     data_dir = deepchem.utils.get_data_dir()
     if platform.system() == 'Linux':
@@ -126,15 +125,7 @@ class VinaPoseGenerator(PoseGenerator):
       raise ValueError("This class can only run on Linux or Mac. If you are on Windows, please try using a cloud platform to run this code instead.")
     self.vina_dir = os.path.join(data_dir, dirname)
     self.exhaustiveness = exhaustiveness
-    self.detect_pockets = detect_pockets
-    if self.detect_pockets:
-      self.pocket_finder = ConvexHullPocketFinder()
-    ###############################################################
-    print("self.vina_dir")
-    print(self.vina_dir)
-    print("os.path.exists(self.vina_dir)")
-    print(os.path.exists(self.vina_dir))
-    ###############################################################
+    self.pocket_finder = pocket_finder 
     if not os.path.exists(self.vina_dir):
       logger.info("Vina not available. Downloading")
       wget_cmd = "wget -nv -c -T 15 %s" % url 
@@ -172,6 +163,10 @@ class VinaPoseGenerator(PoseGenerator):
       If True, don't generate poses, but do setup steps
     out_dir: str, optional
       If specified, write generated poses to this directory.
+
+    Returns
+    -------
+    List of docked molecular complexes
     """
     if out_dir is None:
       out_dir = tempfile.mkdtemp()
@@ -182,32 +177,28 @@ class VinaPoseGenerator(PoseGenerator):
 
     (protein_file, ligand_file) = molecular_complex
 
-    # Prepare receptor
-    receptor_name = os.path.basename(protein_file).split(".")[0]
-    protein_hyd = os.path.join(out_dir, "%s_hyd.pdb" % receptor_name)
-    protein_pdbqt = os.path.join(out_dir, "%s.pdbqt" % receptor_name)
+    # Prepare protein 
+    protein_name = os.path.basename(protein_file).split(".")[0]
+    protein_hyd = os.path.join(out_dir, "%s_hyd.pdb" % protein_name)
+    protein_pdbqt = os.path.join(out_dir, "%s.pdbqt" % protein_name)
+    protein_mol = rdkit_util.load_molecule(
+        protein_file, calc_charges=True, add_hydrogens=True)
 
     # Get protein centroid and range
-    # TODO(rbharath): Need to add some way to identify binding pocket, or this is
-    # going to be extremely slow!
     if centroid is not None and box_dims is not None:
       protein_centroid = centroid
     else:
-      if not self.detect_pockets:
-        receptor_mol = rdkit_util.load_molecule(
-            protein_file, calc_charges=True, add_hydrogens=True)
-        rdkit_util.write_molecule(receptor_mol[1], protein_hyd, is_protein=True)
+      if self.pocket_finder is None:
+        rdkit_util.write_molecule(protein_mol[1], protein_hyd, is_protein=True)
         rdkit_util.write_molecule(
-            receptor_mol[1], protein_pdbqt, is_protein=True)
-        protein_centroid = mol_xyz_util.get_molecule_centroid(receptor_mol[0])
-        protein_range = mol_xyz_util.get_molecule_range(receptor_mol[0])
+            protein_mol[1], protein_pdbqt, is_protein=True)
+        protein_centroid = mol_xyz_util.get_molecule_centroid(protein_mol[0])
+        protein_range = mol_xyz_util.get_molecule_range(protein_mol[0])
         box_dims = protein_range + 5.0
       else:
         logger.info("About to find putative binding pockets")
         pockets, pocket_atoms_maps, pocket_coords = self.pocket_finder.find_pockets(
             protein_file, ligand_file)
-        # TODO(rbharath): Handle multiple pockets instead of arbitrarily selecting
-        # first pocket.
         logger.info("Computing centroid and size of proposed pocket.")
         pocket_coord = pocket_coords[0]
         protein_centroid = np.mean(pocket_coord, axis=1)
@@ -218,7 +209,7 @@ class VinaPoseGenerator(PoseGenerator):
         z_box = (z_max - z_min) / 2.
         box_dims = (x_box, y_box, z_box)
 
-    # Prepare receptor
+    # Prepare protein 
     ligand_name = os.path.basename(ligand_file).split(".")[0]
     ligand_pdbqt = os.path.join(out_dir, "%s.pdbqt" % ligand_name)
 
@@ -239,6 +230,10 @@ class VinaPoseGenerator(PoseGenerator):
     # Define locations of log and output files
     log_file = os.path.join(out_dir, "%s_log.txt" % ligand_name)
     out_pdbqt = os.path.join(out_dir, "%s_docked.pdbqt" % ligand_name)
+    ########################################################
+    print("out_pdbqt")
+    print(out_pdbqt)
+    ########################################################
     # TODO(rbharath): Let user specify the number of poses required.
     if not dry_run:
       logger.info("About to call Vina")
@@ -247,11 +242,8 @@ class VinaPoseGenerator(PoseGenerator):
                                                 log_file, out_pdbqt),
           shell=True)
     # TODO(rbharath): Convert the output pdbqt to a pdb file.
-    ####################################################
-    print("out_pdbqt")
-    print(out_pdbqt)
-    ####################################################
-    docked_complex = rdkit_util.load_complex(out_pdbqt, add_hydrogens=False, calc_charges=False, pdbfix=False, sanitize=False)
+    ligands = vina_outputs.load_docked_ligands(out_pdbqt)
+    complexes = [(protein_mol, ligand_mol) for ligand_mol in ligands]
 
     # Return docked files
     return docked_complex
