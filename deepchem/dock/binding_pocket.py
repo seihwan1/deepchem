@@ -6,7 +6,6 @@ import logging
 import tempfile
 import numpy as np
 from subprocess import call
-from scipy.spatial import ConvexHull
 from deepchem.feat.fingerprints import CircularFingerprint
 from deepchem.models.sklearn_models import SklearnModel
 from deepchem.utils import rdkit_util
@@ -61,59 +60,11 @@ def extract_active_site(protein_file, ligand_file, cutoff=4):
   y_max = int(np.ceil(np.amax(pocket_coords[:, 1])))
   z_min = int(np.floor(np.amin(pocket_coords[:, 2])))
   z_max = int(np.ceil(np.amax(pocket_coords[:, 2])))
-  return (((x_min, x_max), (y_min, y_max), (z_min, z_max)), pocket_atoms,
-          pocket_coords)
-
-
-def compute_overlap(mapping, box1, box2):
-  """Computes overlap between the two boxes.
-
-  Overlap is defined as % atoms of box1 in box2. Note that
-  overlap is not a symmetric measurement.
-  """
-  atom1 = set(mapping[box1])
-  atom2 = set(mapping[box2])
-  return len(atom1.intersection(atom2)) / float(len(atom1))
-
-
-def get_all_boxes(coords, pad=5):
-  """Get all pocket boxes for protein coords.
-
-  We pad all boxes the prescribed number of angstroms.
-
-  Parameters
-  ----------
-  coords: np.ndarray
-    Of shape `(N, 3)`. The coordinates of a molecule.
-  pad: float, optional (default 5)
-    The number of angstroms to pad.
-  """
-  hull = ConvexHull(coords)
-  boxes = []
-  # Each triangle in the simplices is a set of 3 atoms from
-  # coordinates which forms the vertices of an exterior triangle on
-  # the convex hull of the macromolecule.
-  for triangle in hull.simplices:
-    # coords[triangle, 0] gives the x-dimension of all triangle points
-    # Take transpose to make sure rows correspond to atoms.
-    points = np.array(
-        [coords[triangle, 0], coords[triangle, 1], coords[triangle, 2]]).T
-    # We voxelize so all grids have integral coordinates (convenience)
-    x_min, x_max = np.amin(points[:, 0]), np.amax(points[:, 0])
-    x_min, x_max = int(np.floor(x_min)) - pad, int(np.ceil(x_max)) + pad
-    y_min, y_max = np.amin(points[:, 1]), np.amax(points[:, 1])
-    y_min, y_max = int(np.floor(y_min)) - pad, int(np.ceil(y_max)) + pad
-    z_min, z_max = np.amin(points[:, 2]), np.amax(points[:, 2])
-    z_min, z_max = int(np.floor(z_min)) - pad, int(np.ceil(z_max)) + pad
-    boxes.append(((x_min, x_max), (y_min, y_max), (z_min, z_max)))
-  return boxes
-
+  box = CoordinateBox((x_min, x_max), (y_min, y_max), (z_min, z_max))
+  return (box, pocket_atoms, pocket_coords)
 
 def boxes_to_atoms(coords, boxes):
   """Maps each box to a list of atoms in that box.
-
-  TODO(rbharath): This does a num_atoms x num_boxes computations. Is
-  there a reasonable heuristic we can use to speed this up?
 
   Parameters
   ----------
@@ -121,77 +72,21 @@ def boxes_to_atoms(coords, boxes):
     Of shape `(N, 3)
   boxes: list
     list of `CoordinateBox` objects.
+
+  Returns
+  -------
+  dictionary mapping `CoordinateBox` objects to lists of atom coordinates
   """
   mapping = {}
   for box_ind, box in enumerate(boxes):
     box_atoms = []
-    (x_min, x_max), (y_min, y_max), (z_min, z_max) = box
     logger.info("Handing box %d/%d" % (box_ind, len(boxes)))
     for atom_ind in range(len(atom_coords)):
       atom = atom_coords[atom_ind]
-      x_cont = x_min <= atom[0] and atom[0] <= x_max
-      y_cont = y_min <= atom[1] and atom[1] <= y_max
-      z_cont = z_min <= atom[2] and atom[2] <= z_max
-      if x_cont and y_cont and z_cont:
+      if atom in box:
         box_atoms.append(atom_ind)
     mapping[box] = box_atoms
   return mapping
-
-
-def merge_overlapping_boxes(mapping, boxes, threshold=.8):
-  """Merge boxes which have an overlap greater than threshold.
-
-  TODO(rbharath): This merge code is terribly inelegant. It's also
-  quadratic in number of boxes. It feels like there ought to be an
-  elegant divide and conquer approach here. Figure out later...
-
-  Parameters
-  ----------
-  mapping: TODO
-    TODO
-  boxes: TODO
-    TODO
-  threshold: float, optional (default 0.8)
-    The volume fraction of the boxes that must overlap for them to be
-    merged together. 
-  """
-  num_boxes = len(boxes)
-  outputs = []
-  for i in range(num_boxes):
-    box = boxes[0]
-    new_boxes = []
-    new_mapping = {}
-    # If overlap of box with previously generated output boxes, return
-    contained = False
-    for output_box in outputs:
-      # Carry forward mappings
-      new_mapping[output_box] = mapping[output_box]
-      if compute_overlap(mapping, box, output_box) == 1:
-        contained = True
-    if contained:
-      continue
-    # We know that box has at least one atom not in outputs
-    unique_box = True
-    for merge_box in boxes[1:]:
-      overlap = compute_overlap(mapping, box, merge_box)
-      if overlap < threshold:
-        new_boxes.append(merge_box)
-        new_mapping[merge_box] = mapping[merge_box]
-      else:
-        # Current box has been merged into box further down list.
-        # No need to output current box
-        unique_box = False
-        merged = box_utils.merge_boxes(box, merge_box)
-        new_boxes.append(merged)
-        new_mapping[merged] = list(
-            set(mapping[box]).union(set(mapping[merge_box])))
-    if unique_box:
-      outputs.append(box)
-      new_mapping[box] = mapping[box]
-    boxes = new_boxes
-    mapping = new_mapping
-  return outputs, mapping
-
 
 class BindingPocketFinder(object):
   """Abstract superclass for binding pocket detectors
