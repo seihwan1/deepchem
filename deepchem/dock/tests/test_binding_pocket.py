@@ -1,10 +1,6 @@
 """
 Tests for binding pocket detection.
 """
-__author__ = "Bharath Ramsundar"
-__copyright__ = "Copyright 2016, Stanford University"
-__license__ = "MIT"
-
 import sys
 import logging
 import unittest

@@ -7,10 +7,10 @@ import tempfile
 import numpy as np
 from subprocess import call
 from scipy.spatial import ConvexHull
-from deepchem.feat.binding_pocket_features import BindingPocketFeaturizer
 from deepchem.feat.fingerprints import CircularFingerprint
 from deepchem.models.sklearn_models import SklearnModel
 from deepchem.utils import rdkit_util
+from deepchem.utils import coordinate_box_utils as box_utils
 
 logger = logging.getLogger(__name__)
 
@@ -81,15 +81,18 @@ def get_all_boxes(coords, pad=5):
 
   We pad all boxes the prescribed number of angstroms.
 
-  TODO(rbharath): It looks like this may perhaps be non-deterministic?
-
   Parameters
   ----------
   coords: np.ndarray
-    Of shape `(N, 3)`
+    Of shape `(N, 3)`. The coordinates of a molecule.
+  pad: float, optional (default 5)
+    The number of angstroms to pad.
   """
   hull = ConvexHull(coords)
   boxes = []
+  # Each triangle in the simplices is a set of 3 atoms from
+  # coordinates which forms the vertices of an exterior triangle on
+  # the convex hull of the macromolecule.
   for triangle in hull.simplices:
     # coords[triangle, 0] gives the x-dimension of all triangle points
     # Take transpose to make sure rows correspond to atoms.
@@ -138,9 +141,19 @@ def boxes_to_atoms(coords, boxes):
 def merge_overlapping_boxes(mapping, boxes, threshold=.8):
   """Merge boxes which have an overlap greater than threshold.
 
-  TODO(rbharath): This merge code is terribly inelegant. It's also quadratic
-  in number of boxes. It feels like there ought to be an elegant divide and
-  conquer approach here. Figure out later...
+  TODO(rbharath): This merge code is terribly inelegant. It's also
+  quadratic in number of boxes. It feels like there ought to be an
+  elegant divide and conquer approach here. Figure out later...
+
+  Parameters
+  ----------
+  mapping: TODO
+    TODO
+  boxes: TODO
+    TODO
+  threshold: float, optional (default 0.8)
+    The volume fraction of the boxes that must overlap for them to be
+    merged together. 
   """
   num_boxes = len(boxes)
   outputs = []
@@ -168,7 +181,7 @@ def merge_overlapping_boxes(mapping, boxes, threshold=.8):
         # Current box has been merged into box further down list.
         # No need to output current box
         unique_box = False
-        merged = merge_boxes(box, merge_box)
+        merged = box_utils.merge_boxes(box, merge_box)
         new_boxes.append(merged)
         new_mapping[merged] = list(
             set(mapping[box]).union(set(mapping[merge_box])))
@@ -181,10 +194,28 @@ def merge_overlapping_boxes(mapping, boxes, threshold=.8):
 
 
 class BindingPocketFinder(object):
-  """Abstract superclass for binding pocket detectors"""
+  """Abstract superclass for binding pocket detectors
 
-  def find_pockets(self, protein_file, ligand_file):
-    """Finds potential binding pockets in proteins."""
+  Many times when working with a new protein or other macromolecule,
+  it's not clear what zones of the macromolecule may be good targets
+  for potential ligands or other molecules to interact with. This
+  abstract class provides a template for child classes that
+  algorithmically locate potential binding pockets that are good
+  potential interaction sites.
+
+  Note that potential interactions sites can be found by many
+  different methods, and that this abstract class doesn't specify the
+  technique to be used.
+  """
+
+  def find_pockets(self, molecule):
+    """Finds potential binding pockets in proteins.
+
+    Parameters
+    ----------
+    molecule: object
+      Some representation of a molecule.
+    """
     raise NotImplementedError
 
 

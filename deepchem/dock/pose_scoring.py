@@ -1,18 +1,6 @@
-#"""
-#Scores protein-ligand poses using DeepChem.
-#"""
-#from deepchem.feat import RdkitGridFeaturizer
-#
-#__author__ = "Bharath Ramsundar"
-#__copyright__ = "Copyright 2016, Stanford University"
-#__license__ = "MIT"
-#
-#import numpy as np
-#import os
-#import tempfile
-#from deepchem.data import NumpyDataset
-#from subprocess import call
-#
+"""
+Utilities to score protein-ligand poses using DeepChem.
+"""
 import numpy as np
 
 
@@ -21,9 +9,9 @@ def pairwise_distances(coords1, coords2):
 
   Parameters
   ----------
-  coords1: jax.np.ndarray
+  coords1: np.ndarray
     Of shape `(N, 3)`
-  coords2: jax.np.ndarray
+  coords2: np.ndarray
     Of shape `(M, 3)`
 
   Returns
@@ -75,7 +63,7 @@ def vina_repulsion(d):
 
   Parameters
   ----------
-  d: jax.np.ndarray
+  d: np.ndarray
     Of shape `(N, M)`.
 
   Returns
@@ -89,7 +77,7 @@ def vina_hydrophobic(d):
 
   Parameters
   ----------
-  d: jax.np.ndarray
+  d: np.ndarray
     Of shape `(N, M)`.
 
   Returns
@@ -107,7 +95,7 @@ def vina_hbond(d):
 
   Parameters
   ----------
-  d: jax.np.ndarray
+  d: np.ndarray
     Of shape `(N, M)`.
 
   Returns
@@ -120,12 +108,12 @@ def vina_hbond(d):
       np.where(d < 0, (1.0 / 0.7) * (0 - d), np.zeros_like(d)))
   return out_tensor
 
-def gaussian_first(d):
+def vina_gaussian_first(d):
   """Computes Autodock Vina's first Gaussian interaction term.
 
   Parameters
   ----------
-  d: jax.np.ndarray
+  d: np.ndarray
     Of shape `(N, M)`.
 
   Returns
@@ -135,12 +123,12 @@ def gaussian_first(d):
   out_tensor = np.exp(-(d / 0.5)**2)
   return out_tensor
 
-def gaussian_second(d):
+def vina_gaussian_second(d):
   """Computes Autodock Vina's second Gaussian interaction term.
 
   Parameters
   ----------
-  d: jax.np.ndarray
+  d: np.ndarray
     Of shape `(N, M)`.
 
   Returns
@@ -150,81 +138,38 @@ def gaussian_second(d):
   out_tensor = np.exp(-((d - 3) / 2)**2)
   return out_tensor
 
-
-class VinaFreeEnergy(object):
-  """Uses Numpy to compute the VinaFreeEnergy
-  """
-
-  def __init__(self,
-               N_atoms,
-               #M_nbrs,
-               ndim,
-               nbr_cutoff,
-               start,
-               stop,
-               stddev=.3,
-               Nrot=1,
-               **kwargs):
-    super(VinaFreeEnergy, self).__init__(**kwargs)
-    self.stddev = stddev
-    # Number of rotatable bonds
-    # TODO(rbharath): Vina actually sets this per-molecule. See if makes
-    # a difference.
-    self.Nrot = Nrot
-    self.N_atoms = N_atoms
-    #self.M_nbrs = M_nbrs
-    self.ndim = ndim
-    self.nbr_cutoff = nbr_cutoff
-    self.start = start
-    self.stop = stop
-
-  #def build(self, input_shape):
-  #  self.weighted_combo = WeightedLinearCombo()
-  #  self.w = tf.Variable(tf.random.normal((1,), stddev=self.stddev))
-  #  self.built = True
-
 def weighted_linear_sum(w, x):
   """Computes weighted linear sum.
 
   Parameters
   ----------
-  w: jax.np.ndarray
+  w: np.ndarray
     Of shape `(N,)`
-  x: jax.np.ndarray
+  x: np.ndarray
     Of shape `(N,)`
   """
   return np.sum(np.dot(w, x))
 
-def vina_energy_term(coords1, coords2, weights, wrot):
-  """
+def vina_energy_term(coords1, coords2, weights, wrot, Nrot):
+  """Computes the Vina Energy function for two molecular conformations
+
   Parameters
   ----------
-  coords1: jax.np.ndarray 
+  coords1: np.ndarray 
     Molecular coordinates of shape `(N, 3)`
-  coords2: jax.np.ndarray 
+  coords2: np.ndarray 
     Molecular coordinates of shape `(M, 3)`
-  weights: jax.np.ndarray
+  weights: np.ndarray
     Of shape `(5,)`
   wrot: float
     The scaling factor for nonlinearity
+  Nrot: int
+    Number of rotatable bonds in this calculation
 
   Returns
   -------
-  Scalar of energy
+  Scalar with energy
   """
-  #X = inputs[0]
-  #Z = inputs[1]
-
-  ## TODO(rbharath): This layer shouldn't be neighbor-listing. Make
-  ## neighbors lists an argument instead of a part of this layer.
-  #nbr_list = NeighborList(self.N_atoms, self.M_nbrs, self.ndim,
-  #                        self.nbr_cutoff, self.start, self.stop)(X)
-
-  #dists = InteratomicL2Distances(self.N_atoms, self.M_nbrs,
-  #                               self.ndim)([X, nbr_list])
-
-  ## Shape (N, M)
-
   # TODO(rbharath): The autodock vina source computes surface distances which take into account the van der Waals radius of each atom type.
   dists = pairwise_distances(coords1, coords2)
   repulsion = vina_repulsion(dists)
@@ -240,6 +185,5 @@ def vina_energy_term(coords1, coords2, weights, wrot):
   # Shape (N, M)
   thresholded = cutoff_filter(dists, interactions)
 
-  free_energies = vina_nonlinearity(thresholded, wrot)
-  #return tf.reduce_sum(free_energies)
+  free_energies = vina_nonlinearity(thresholded, wrot, Nrot)
   return np.sum(free_energies)
