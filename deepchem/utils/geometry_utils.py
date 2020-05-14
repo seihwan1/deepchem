@@ -3,6 +3,7 @@ Geometric utility functions for 3D geometry.
 """
 import logging
 import numpy as np
+from scipy.spatial.distance import cdist
 
 logger = logging.getLogger(__name__)
 

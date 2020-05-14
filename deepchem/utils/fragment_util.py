@@ -1,5 +1,7 @@
 """A collection of utilities for dealing with Molecular Fragments"""
+import itertools
 import numpy as np
+from deepchem.utils.geometry_utils import compute_pairwise_distances
 
 def get_partial_charge(atom):
   """Get partial charge of a given atom (rdkit Atom object)

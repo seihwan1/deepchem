@@ -8,13 +8,20 @@ from deepchem.feat import Featurizer
 logger = logging.getLogger(__name__)
 
 class BindingPocketFeaturizer(Featurizer):
-  """
-  Featurizes binding pockets with information about chemical
+  """Featurizes binding pockets with information about chemical
   environments.
 
-  Expects to be given a pdb file, and coordinates for the pockets to
-  featurize. This classes' featurization is currently very simple and
-  counts the number of residues of each type present in the pocket.
+  In many applications, it's desirable to look at binding pockets on
+  macromolecules which may be good targets for potential ligands or
+  other molecules to interact with. A `BindingPocketFeaturizer`
+  expects to be given a macromolecule, and a list of pockets to
+  featurize on that macromolecule. These pockets should be of the form
+  produced by a `dc.dock.BindingPocketFinder`, that is as a list of
+  `dc.utils.CoordinateBox` objects.
+
+  The base featurization in this class's featurization is currently
+  very simple and counts the number of residues of each type present
+  in the pocket. It's likely that you'll want to overwrite this implementation for more sophisticated downstream usecases.
   """
 
   residues = [

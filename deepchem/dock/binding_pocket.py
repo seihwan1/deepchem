@@ -10,6 +10,7 @@ from deepchem.feat.fingerprints import CircularFingerprint
 from deepchem.models.sklearn_models import SklearnModel
 from deepchem.utils import rdkit_util
 from deepchem.utils import coordinate_box_utils as box_utils
+from deepchem.utils.fragment_util import get_contact_atom_indices
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +64,8 @@ def boxes_to_atoms(coords, boxes):
   for box_ind, box in enumerate(boxes):
     box_atoms = []
     logger.info("Handing box %d/%d" % (box_ind, len(boxes)))
-    for atom_ind in range(len(atom_coords)):
-      atom = atom_coords[atom_ind]
+    for atom_ind in range(len(coords)):
+      atom = coords[atom_ind]
       if atom in box:
         box_atoms.append(atom_ind)
     mapping[box] = box_atoms
@@ -131,8 +132,8 @@ class ConvexHullPocketFinder(BindingPocketFinder):
     protein_file: str
       Protein to load in.
     """
-    protein = rdkit_util.load_molecule(protein_file)[0]
-    return get_all_boxes(protein, self.pad)
+    coords, _ = rdkit_util.load_molecule(protein_file)
+    return box_utils.get_face_boxes(coords, self.pad)
 
   def find_pockets(self, protein_file, ligand_file):
     """Find list of suitable binding pockets on protein.
@@ -156,8 +157,8 @@ class ConvexHullPocketFinder(BindingPocketFinder):
         protein_file, add_hydrogens=False, calc_charges=False)[0]
     ligand_coords = rdkit_util.load_molecule(
         ligand_file, add_hydrogens=False, calc_charges=False)[0]
-    boxes = get_all_boxes(protein_coords, self.pad)
-    boxes = merge_overlapping_boxes(boxes)
+    boxes = box_utils.get_face_boxes(protein_coords, self.pad)
+    boxes = box_utils.merge_overlapping_boxes(boxes)
     mapping = boxes_to_atoms(protein_coords, boxes)
     pocket_coords = []
     for box in boxes:
