@@ -32,26 +32,8 @@ def extract_active_site(protein_file, ligand_file, cutoff=4):
   ligand = rdkit_util.load_molecule(
       ligand_file, add_hydrogens=True, calc_charges=True)[0]
   contact_atoms = get_contact_atom_indices([protein, ligand], cutoff=cutoff)
-  #num_ligand_atoms = len(ligand_coords)
-  #num_protein_atoms = len(protein_coords)
-  #pocket_inds = []
-  #pocket_atoms = set([])
-  #for lig_atom_ind in range(num_ligand_atoms):
-  #  lig_atom = ligand_coords[lig_atom_ind]
-  #  for protein_atom_ind in range(num_protein_atoms):
-  #    protein_atom = protein_coords[protein_atom_ind]
-  #    if np.linalg.norm(lig_atom - protein_atom) < cutoff:
-  #      if protein_atom_ind not in pocket_atoms:
-  #        pocket_atoms = pocket_atoms.union(set([protein_atom_ind]))
-  ## Should be an array of size (n_pocket_atoms, 3)
-  #pocket_atoms = list(pocket_atoms)
-  #n_pocket_atoms = len(pocket_atoms)
   n_contact_atoms = len(contact_atoms)
-  #pocket_coords = np.zeros((n_pocket_atoms, 3))
-  #pocket_coords = np.zeros((n_contact_atoms, 3))
   protein_coords = protein[0]
-  #for ind, pocket_ind in enumerate(pocket_atoms):
-  #  pocket_coords[ind] = protein_coords[pocket_ind]
   pocket_coords = protein_coords[contact_atoms]
 
   x_min = int(np.floor(np.amin(pocket_coords[:, 0])))
@@ -155,6 +137,10 @@ class ConvexHullPocketFinder(BindingPocketFinder):
   def find_pockets(self, protein_file, ligand_file):
     """Find list of suitable binding pockets on protein.
 
+
+    TODO: What is a pocket? Maybe this should be a class so it's a
+    clean API. Returning a tuple feels kludgey.
+
     Params
     ------
     protein_file: str
@@ -171,16 +157,14 @@ class ConvexHullPocketFinder(BindingPocketFinder):
     ligand_coords = rdkit_util.load_molecule(
         ligand_file, add_hydrogens=False, calc_charges=False)[0]
     boxes = get_all_boxes(protein_coords, self.pad)
+    boxes = merge_overlapping_boxes(boxes)
     mapping = boxes_to_atoms(protein_coords, boxes)
-    pockets, pocket_atoms_map = merge_overlapping_boxes(mapping, boxes)
     pocket_coords = []
-    for pocket in pockets:
-      atoms = pocket_atoms_map[pocket]
-      coords = np.zeros((len(atoms), 3))
-      for ind, atom in enumerate(atoms):
-        coords[ind] = protein_coords[atom]
+    for box in boxes:
+      atoms = mapping[pocket]
+      coords = protein_coords[atoms]
       pocket_coords.append(coords)
-    return pockets, pocket_atoms_map, pocket_coords
+    return boxes, pocket_coords
 
 
 #class RFConvexHullPocketFinder(BindingPocketFinder):
@@ -191,16 +175,6 @@ class ConvexHullPocketFinder(BindingPocketFinder):
 #    self.convex_finder = ConvexHullPocketFinder(pad)
 #
 #    # Load binding pocket model
-#    self.base_dir = tempfile.mkdtemp()
-#    logger.info("About to download trained model.")
-#    # TODO(rbharath): Shift refined to full once trained.
-#    call((
-#        "wget -nv -c http://deepchem.io.s3-website-us-west-1.amazonaws.com/trained_models/pocket_random_refined_RF.tar.gz"
-#    ).split())
-#    call(("tar -zxvf pocket_random_refined_RF.tar.gz").split())
-#    call(("mv pocket_random_refined_RF %s" % (self.base_dir)).split())
-#    self.model_dir = os.path.join(self.base_dir, "pocket_random_refined_RF")
-#
 #    # Fit model on dataset
 #    self.model = SklearnModel(model_dir=self.model_dir)
 #    self.model.reload()
