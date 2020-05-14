@@ -8,6 +8,7 @@ def write_vina_conf(protein_filename,
                      centroid,
                      box_dims,
                      conf_filename,
+                     num_modes=9,
                      exhaustiveness=None):
   """Writes Vina configuration file to disk.
 
@@ -28,6 +29,8 @@ def write_vina_conf(protein_filename,
     Of shape `(3,)` holding the size of the box to dock
   conf_filename: str
     Filename to write Autodock Vina configuration to.
+  num_modes: int, optional (default 9)
+    The number of binding modes Autodock Vina should find
   exhaustiveness: int, optional
     The exhaustiveness of the search to be performed by Vina
   """
@@ -43,6 +46,7 @@ def write_vina_conf(protein_filename,
     f.write("size_y = %f\n" % box_dims[1])
     f.write("size_z = %f\n\n" % box_dims[2])
 
+    f.write("num_modes = %d\n\n" % num_modes)
     if exhaustiveness is not None:
       f.write("exhaustiveness = %d\n" % exhaustiveness)
 

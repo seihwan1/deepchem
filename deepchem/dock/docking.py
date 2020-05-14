@@ -20,20 +20,23 @@ class Docker(object):
   molecular docking programmatically.
   """
 
-  def __init__(self, scoring_model, featurizer, pose_generator, exhaustiveness=10, detect_pockets=False):
+  def __init__(self, pose_generator, featurizer=None, scoring_model=None, exhaustiveness=10, detect_pockets=False):
     """Builds model.
 
     Parameters
     ----------
-    scoring_model: `Model`
-      Should make predictions on molecular complex.
-    featurizer: `ComplexFeaturizer`
-      Featurizer associated with `scoring_model`
     pose_generator: `PoseGenerator`
       The pose generator to use for this model
+    featurizer: `ComplexFeaturizer`
+      Featurizer associated with `scoring_model`
+    scoring_model: `Model`
+      Should make predictions on molecular complex.
     """
     self.base_dir = tempfile.mkdtemp()
     self.pose_generator = pose_generator
+    self.featurizer = featurizer
+    self.scoring_model = scoring_model
+    self.exhaustiveness = exhaustiveness
 
   def dock(self,
            molecular_complex,
@@ -47,9 +50,12 @@ class Docker(object):
     molecular_complex: Object
       Some representation of a molecular complex.
     """
-    for posed_compled in self.pose_generator.generate_poses(molecular_complex):
-      # TODO: How to handle the failure here?
-      features, _ = self.featurizer.featurize_complexes([molecular_complex])
-      dataset = NumpyDataset(X=features)
-      score = self.model.predict(dataset)
-      yield (score, posed_complex)
+    for posed_complex in self.pose_generator.generate_poses(molecular_complex):
+      if self.featurizer is not None:
+        # TODO: How to handle the failure here?
+        features, _ = self.featurizer.featurize_complexes([molecular_complex])
+        dataset = NumpyDataset(X=features)
+        score = self.model.predict(dataset)
+        yield (score, posed_complex)
+      else:
+        yield posed_complex

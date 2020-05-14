@@ -14,7 +14,6 @@ import numpy as np
 from io import StringIO
 from copy import deepcopy
 from collections import Counter
-from scipy.spatial.distance import cdist
 from deepchem.utils import pdbqt_utils
 from deepchem.utils.pdbqt_utils import convert_mol_to_pdbqt
 from deepchem.utils.pdbqt_utils import convert_protein_to_pdbqt

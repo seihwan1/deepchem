@@ -29,13 +29,12 @@ def extract_active_site(protein_file, ligand_file, cutoff=4):
     consider for featurization.
   """
   protein = rdkit_util.load_molecule(
-      protein_file, add_hydrogens=False)[0]
+      protein_file, add_hydrogens=False)
   ligand = rdkit_util.load_molecule(
-      ligand_file, add_hydrogens=True, calc_charges=True)[0]
-  contact_atoms = get_contact_atom_indices([protein, ligand], cutoff=cutoff)
-  n_contact_atoms = len(contact_atoms)
+      ligand_file, add_hydrogens=True, calc_charges=True)
+  protein_contacts, ligand_contacts = get_contact_atom_indices([protein, ligand], cutoff=cutoff)
   protein_coords = protein[0]
-  pocket_coords = protein_coords[contact_atoms]
+  pocket_coords = protein_coords[protein_contacts]
 
   x_min = int(np.floor(np.amin(pocket_coords[:, 0])))
   x_max = int(np.ceil(np.amax(pocket_coords[:, 0])))
@@ -43,8 +42,8 @@ def extract_active_site(protein_file, ligand_file, cutoff=4):
   y_max = int(np.ceil(np.amax(pocket_coords[:, 1])))
   z_min = int(np.floor(np.amin(pocket_coords[:, 2])))
   z_max = int(np.ceil(np.amax(pocket_coords[:, 2])))
-  box = CoordinateBox((x_min, x_max), (y_min, y_max), (z_min, z_max))
-  return (box, pocket_atoms, pocket_coords)
+  box = box_utils.CoordinateBox((x_min, x_max), (y_min, y_max), (z_min, z_max))
+  return (box, pocket_coords)
 
 def boxes_to_atoms(coords, boxes):
   """Maps each box to a list of atoms in that box.
@@ -63,7 +62,6 @@ def boxes_to_atoms(coords, boxes):
   mapping = {}
   for box_ind, box in enumerate(boxes):
     box_atoms = []
-    logger.info("Handing box %d/%d" % (box_ind, len(boxes)))
     for atom_ind in range(len(coords)):
       atom = coords[atom_ind]
       if atom in box:
@@ -161,7 +159,7 @@ class ConvexHullPocketFinder(BindingPocketFinder):
     boxes = box_utils.merge_overlapping_boxes(boxes)
     mapping = boxes_to_atoms(protein_coords, boxes)
     pocket_coords = []
-    for box in boxes:
+    for pocket in boxes:
       atoms = mapping[pocket]
       coords = protein_coords[atoms]
       pocket_coords.append(coords)
