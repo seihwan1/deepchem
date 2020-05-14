@@ -23,8 +23,8 @@ class TestAtomicCoordinates(unittest.TestCase):
 
     finder = dc.dock.ConvexHullPocketFinder()
     pocket_featurizer = dc.feat.BindingPocketFeaturizer()
-    pockets, pocket_atoms, pocket_coords = finder.find_pockets(
-        protein_file, ligand_file)
+    pockets, pocket_coords = finder.find_pockets(
+        (protein_file, ligand_file))
     n_pockets = len(pockets)
 
     pocket_features = pocket_featurizer.featurize(protein_file, pockets,

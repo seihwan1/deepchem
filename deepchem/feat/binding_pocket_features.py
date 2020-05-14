@@ -35,7 +35,6 @@ class BindingPocketFeaturizer(Featurizer):
   def featurize(self,
                 protein_file,
                 pockets,
-                pocket_atoms_map,
                 pocket_coords):
     """
     Calculate atomic coodinates.
@@ -44,13 +43,16 @@ class BindingPocketFeaturizer(Featurizer):
     ------
     protein_file: str
       Location of PDB file. Will be loaded by MDTraj
-    pockets: list
-      Keys which uniquely identify pockets in `pocket_atoms_map` 
-    pocket_atoms_map: dict
-      Maps pockets to a list of atoms in the pocket
+    pockets: list[CoordinateBox]
+      List of `dc.utils.CoordinateBox` objects.
     pocket_coords: list
-      List of coordinates for the pocket in PDB.
+      Coordinates of atoms. Must be of same length as `pockets`.
+
+    Raises
+    ------
+    `ValueError` if `len(pockets) == len
     """
+    if len(
     import mdtraj
     protein = mdtraj.load(protein_file)
     n_pockets = len(pockets)
