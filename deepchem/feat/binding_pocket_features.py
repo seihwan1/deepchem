@@ -21,7 +21,8 @@ class BindingPocketFeaturizer(Featurizer):
 
   The base featurization in this class's featurization is currently
   very simple and counts the number of residues of each type present
-  in the pocket. It's likely that you'll want to overwrite this implementation for more sophisticated downstream usecases.
+  in the pocket. It's likely that you'll want to overwrite this
+  implementation for more sophisticated downstream usecases.
   """
 
   residues = [

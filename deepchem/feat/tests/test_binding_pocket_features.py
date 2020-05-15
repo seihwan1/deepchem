@@ -27,8 +27,9 @@ class TestAtomicCoordinates(unittest.TestCase):
         (protein_file, ligand_file))
     n_pockets = len(pockets)
 
-    pocket_features = pocket_featurizer.featurize(protein_file, pockets,
-                                                  pocket_atoms, pocket_coords)
+    pocket_features = pocket_featurizer.featurize(protein_file,
+                                                  pockets,
+                                                  pocket_coords)
 
     assert isinstance(pocket_features, np.ndarray)
     assert pocket_features.shape[0] == n_pockets
