@@ -52,7 +52,9 @@ class BindingPocketFeaturizer(Featurizer):
   The base featurization in this class's featurization is currently
   very simple and counts the number of residues of each type present
   in the pocket. It's likely that you'll want to overwrite this
-  implementation for more sophisticated downstream usecases.
+  implementation for more sophisticated downstream usecases. Note that
+  this class's implementation will only work for proteins and not for
+  other macromolecules
   """
 
   residues = [
