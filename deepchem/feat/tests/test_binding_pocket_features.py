@@ -1,5 +1,5 @@
 """
-Test atomic coordinates and neighbor lists.
+Test Binding Pocket Features. 
 """
 import os
 import numpy as np
@@ -7,14 +7,14 @@ import unittest
 import deepchem as dc
 
 
-class TestAtomicCoordinates(unittest.TestCase):
+class TestBindingPocketFeatures(unittest.TestCase):
   """
   Test AtomicCoordinates.
   """
 
-  def test_atomic_coordinates(self):
+  def test_pocket_features(self):
     """
-    Simple test that atomic coordinates returns ndarray of right shape.
+    Simple test that pocket_features return right shapes.
     """
     current_dir = os.path.dirname(os.path.realpath(__file__))
     protein_file = os.path.join(current_dir,
