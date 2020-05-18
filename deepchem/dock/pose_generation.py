@@ -30,13 +30,37 @@ class PoseGenerator(object):
   interactions.
   """
 
-  def generate_poses(self, molecular_complex):
+  def generate_poses(self,
+                     molecular_complex,
+                     centroid=None,
+                     box_dims=None,
+                     exhaustiveness=10, 
+                     num_modes=9, 
+                     num_pockets=None,
+                     out_dir=None):
     """Generates a list of low energy poses for molecular complex
 
     Parameters
     ----------
     molecular_complexes: list
       A representation of a molecular complex.
+    centroid: np.ndarray, optional
+      The centroid to dock against. Is computed if not specified.
+    box_dims: np.ndarray, optional
+      Of shape `(3,)` holding the size of the box to dock. If not
+      specified is set to size of molecular complex plus 5 angstroms.
+    exhaustiveness: int, optional (default 10)
+      Tells Autodock Vina how exhaustive it should be with pose
+      generation.
+    num_modes: int, optional (default 9)
+      Tells Autodock Vina how many binding modes it should generate at
+      each invocation.
+    num_pockets: int, optional (default None)
+      If specified, `self.pocket_finder` must be set. Will only
+      generate poses for the first `num_pockets` returned by
+      `self.pocket_finder`.
+    out_dir: str, optional
+      If specified, write generated poses to this directory.
 
     Returns
     -------
@@ -114,6 +138,10 @@ class VinaPoseGenerator(PoseGenerator):
                      out_dir=None):
     """Generates the docked complex and outputs files for docked complex.
 
+    TODO: How can this work on Windows? We need to install a .msi file and invoke it correctly from Python for this to work.
+
+    TODO: Can we extract the autodock vina computed binding free energy? Need to parse the output from Autodock vina.
+
     Parameters
     ----------
     molecular_complexes: list
@@ -142,7 +170,7 @@ class VinaPoseGenerator(PoseGenerator):
 
     Raises
     ------
-    `ValueError` if `num_pockets` is set but `self.pocket_fider is None`.
+    `ValueError` if `num_pockets` is set but `self.pocket_finder is None`.
     """
     if out_dir is None:
       out_dir = tempfile.mkdtemp()
@@ -179,13 +207,12 @@ class VinaPoseGenerator(PoseGenerator):
         centroids, dimensions = [protein_centroid], [box_dims]
       else:
         logger.info("About to find putative binding pockets")
-        pockets, pocket_coords = self.pocket_finder.find_pockets(
-            protein_file, ligand_file)
+        pockets = self.pocket_finder.find_pockets(
+            (protein_file, ligand_file))
         logger.info("%d pockets found in total" % len(pockets))
         logger.info("Computing centroid and size of proposed pockets.")
         centroids, dimensions = [], []
-        for pocket, pocket_coord in zip(pockets, pocket_coords):
-          #protein_centroid = np.mean(pocket_coord, axis=0)
+        for pocket in pockets:
           protein_centroid = pocket.center()
           (x_min, x_max), (y_min, y_max), (z_min, z_max) = pocket.x_range, pocket.y_range, pocket.z_range
           # TODO(rbharath: Does vina divide box dimensions by 2?
@@ -228,7 +255,6 @@ class VinaPoseGenerator(PoseGenerator):
       # Define locations of log and output files
       log_file = os.path.join(out_dir, "%s_log.txt" % ligand_name)
       out_pdbqt = os.path.join(out_dir, "%s_docked.pdbqt" % ligand_name)
-      # TODO(rbharath): Let user specify the number of poses required.
       logger.info("About to call Vina")
       call(
           "%s --config %s --log %s --out %s" % (self.vina_cmd, conf_file,

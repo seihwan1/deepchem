@@ -3,9 +3,39 @@ Featurizes proposed binding pockets.
 """
 import numpy as np
 import logging
+from deepchem.utils import rdkit_util
 from deepchem.feat import Featurizer
 
 logger = logging.getLogger(__name__)
+
+def boxes_to_atoms(coords, boxes):
+  """Maps each box to a list of atoms in that box.
+
+  Given the coordinates of a macromolecule, and a collection of boxes,
+  returns a dictionary which maps boxes to the atom indices of the
+  atoms in them.
+
+  Parameters
+  ----------
+  coords: np.ndarray
+    Of shape `(N, 3)
+  boxes: list
+    list of `CoordinateBox` objects.
+
+  Returns
+  -------
+  dictionary mapping `CoordinateBox` objects to lists of atom coordinates
+  """
+  mapping = {}
+  for box_ind, box in enumerate(boxes):
+    box_atoms = []
+    for atom_ind in range(len(coords)):
+      atom = coords[atom_ind]
+      if atom in box:
+        box_atoms.append(atom_ind)
+    mapping[box] = box_atoms
+  return mapping
+
 
 class BindingPocketFeaturizer(Featurizer):
   """Featurizes binding pockets with information about chemical
@@ -35,8 +65,7 @@ class BindingPocketFeaturizer(Featurizer):
 
   def featurize(self,
                 protein_file,
-                pockets,
-                pocket_coords):
+                pockets):
     """
     Calculate atomic coodinates.
 
@@ -46,22 +75,22 @@ class BindingPocketFeaturizer(Featurizer):
       Location of PDB file. Will be loaded by MDTraj
     pockets: list[CoordinateBox]
       List of `dc.utils.CoordinateBox` objects.
-    pocket_coords: list
-      Coordinates of atoms. Must be of same length as `pockets`.
 
-    Raises
-    ------
-    `ValueError` if `len(pockets) == len
+    Returns
+    -------
+    A numpy array of shale `(len(pockets), n_residues)`
     """
-    if len(
     import mdtraj
+    protein_coords = rdkit_util.load_molecule(
+        protein_file, add_hydrogens=False, calc_charges=False)[0]
+    mapping = boxes_to_atoms(protein_coords, pockets)
     protein = mdtraj.load(protein_file)
     n_pockets = len(pockets)
     n_residues = len(BindingPocketFeaturizer.residues)
     res_map = dict(zip(BindingPocketFeaturizer.residues, range(n_residues)))
     all_features = np.zeros((n_pockets, n_residues))
-    for pocket_num, (pocket, coords) in enumerate(zip(pockets, pocket_coords)):
-      pocket_atoms = pocket_atoms_map[pocket]
+    for pocket_num, pocket in enumerate(pockets):
+      pocket_atoms = mapping[pocket]
       for ind, atom in enumerate(pocket_atoms):
         atom_name = str(protein.top.atom(atom))
         # atom_name is of format RESX-ATOMTYPE

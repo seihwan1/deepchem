@@ -65,7 +65,7 @@ class TestBindingPocket(unittest.TestCase):
 
     finder = dc.dock.ConvexHullPocketFinder()
     all_pockets = finder.find_all_pockets(protein_file)
-    pockets, pocket_coords = finder.find_pockets(
+    pockets = finder.find_pockets(
         protein_file, ligand_file)
     # Test that every atom in pocket maps exists
     n_protein_atoms = protein.xyz.shape[1]
@@ -83,6 +83,6 @@ class TestBindingPocket(unittest.TestCase):
     active_site_box, active_site_coords = (
         dc.dock.binding_pocket.extract_active_site(protein_file, ligand_file))
     finder = dc.dock.ConvexHullPocketFinder()
-    pockets, _ = finder.find_pockets(protein_file, ligand_file)
+    pockets = finder.find_pockets(protein_file, ligand_file)
 
     assert len(pockets) > 0
